@@ -13,7 +13,7 @@ def jobs():
     token = request.headers['Authorization']
     data = {"token": token}
     result = requests.post('http://0.0.0.0:5001/auth', data=data).content
-    if result == "density":
+    if result == b'density':
         return 'Jobs:\nTitle: Devops\nDescription: Awesome\n'
     else:
         return 'fail'
