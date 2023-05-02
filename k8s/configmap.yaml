@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-b-configmap
+data:
+  app_b_ip: app-b-service
