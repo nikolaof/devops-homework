@@ -1,5 +1,6 @@
 from flask import Flask, request
 import requests
+import os
 application = Flask(__name__)
 
 
@@ -10,9 +11,10 @@ def hello():
 
 @application.route('/jobs', methods=['POST'])
 def jobs():
+    APP_B_IP = os.getenv('APP_B_IP', '0.0.0.0')
     token = request.headers['Authorization']
     data = {"token": token}
-    result = requests.post('http://0.0.0.0:5001/auth', data=data).content
+    result = requests.post(f'http://{APP_B_IP}:5001/auth', data=data).content
     if result == b'density':
         return 'Jobs:\nTitle: Devops\nDescription: Awesome\n'
     else:
