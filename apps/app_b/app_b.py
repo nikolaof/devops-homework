@@ -7,7 +7,7 @@ application = Flask(__name__)
 def auth():
     try:
         token = request.form['token']
-        con = sql.connect("database.db")
+        con = sql.connect("./sqlite/database.db")
         cur = con.cursor()
         cur.execute(
             "SELECT username from users where token = (?) LIMIT 1",
