@@ -1,0 +1,26 @@
+version: "3.7"
+services:
+    app_a:
+        container_name: app_a
+        image: app_a
+        environment:
+          - APP_B_IP=10.0.0.3
+        ports:
+          - "80:5000"
+        networks:
+            kebormed_net:
+                ipv4_address: 10.0.0.2
+
+    app_b:
+        container_name: app_b
+        image: app_b
+        volumes:
+            - '/opt/docker-volumes/app_b:/app/sqlite'
+        networks:
+            kebormed_net:
+                ipv4_address: 10.0.0.3
+
+networks:
+    kebormed_net:
+      external: true
+        
