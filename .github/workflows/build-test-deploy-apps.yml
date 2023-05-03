@@ -64,40 +64,40 @@ jobs:
           tags: ${{ steps.meta-b.outputs.tags }}
 
 	deploy:
-		name: Deploy
-		runs-on: ubuntu-latest
-		needs: build
+          name: Deploy
+          runs-on: ubuntu-latest
+          needs: build
 
-		steps:
-			# Checkout the repo to runner and deploy at EC2
-			- name: Checkout and deploy at EC2
-				uses: actions/checkout@v2
-				env:
-					PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-          HOSTNAME : ${{ secrets.AWS_HOSTNAME }}
-          USER_NAME : ${{ secrets.AWS_USER_NAME }}
+          steps:
+          # Checkout the repo to runner and deploy at EC2
+          - name: Checkout and deploy at EC2
+	    uses: actions/checkout@v2
+	    env:
+	      PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+              HOSTNAME : ${{ secrets.AWS_HOSTNAME }}
+              USER_NAME : ${{ secrets.AWS_USER_NAME }}
 
-				run: |
-        	echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
-						# The following commands should executed in EC2.
-						cd /home/ubuntu/devops-homework &&
-						git checkout master &&
-						git fetch --all &&
-						git reset --hard origin/master &&
-						git pull origin master &&
-						cd k8s &&
-						kubectl rollout restart deployment/app-a-deployment &&
-						kubectl rollout restart deployment/app-b-deployment 
-					'
+	    run: |
+              echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+              ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+                # The following commands should executed in EC2.
+                cd /home/ubuntu/devops-homework &&
+                git checkout main &&
+                git fetch --all &&
+                git reset --hard origin/main &&
+                git pull origin main &&
+                cd k8s &&
+                kubectl rollout restart deployment/app-a-deployment &&
+                kubectl rollout restart deployment/app-b-deployment 
+              '
 			
-			# Get cluster's health after deployment
-			- name: Run Kube-Bench to check cluster config
-      	continue-on-error: true
-      	run: |
-					ssh -o StrictHostKeyChecking=np -i private_key ${USERNAME}@${HOSTNAME} '
-        	kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-aks.yaml &&
-        	sleep 30s &&
-        	kubectl logs job.batch/kube-bench &&
-        	kubectl delete job.batch/kube-bench
-				'
+	  # Get cluster's health after deployment
+          - name: Run Kube-Bench to check cluster config
+      	    continue-on-error: true
+      	    run: |
+	      ssh -o StrictHostKeyChecking=np -i private_key ${USERNAME}@${HOSTNAME} '
+              kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-aks.yaml &&
+              sleep 30s &&
+              kubectl logs job.batch/kube-bench &&
+              kubectl delete job.batch/kube-bench
+	    '
