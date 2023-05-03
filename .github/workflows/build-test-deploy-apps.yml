@@ -91,6 +91,10 @@ jobs:
 
       # Get cluster's health after deployment
       - name: Run Kube-Bench to check cluster config
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          HOSTNAME : ${{ secrets.AWS_HOSTNAME }}
+          USER_NAME : ${{ secrets.AWS_USER_NAME }}
         continue-on-error: true
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key ${USERNAME}@${HOSTNAME} '
