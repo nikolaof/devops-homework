@@ -97,6 +97,7 @@ jobs:
           USER_NAME : ${{ secrets.AWS_USER_NAME }}
         continue-on-error: true
         run: |
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${USERNAME}@${HOSTNAME} '
               kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-aks.yaml &&
               sleep 30s &&
