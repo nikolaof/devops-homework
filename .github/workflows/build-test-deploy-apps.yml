@@ -22,7 +22,7 @@ jobs:
         uses: docker/metadata-action@v4
         id: meta-a
         with:
-          images: hub.docker.com/r/biopix/app_a
+          images: biopix/app_a
           flavor: latest=true
           tags: |
             type=semver,pattern={{version}}
@@ -32,7 +32,7 @@ jobs:
         uses: docker/metadata-action@v4
         id: meta-b
         with:
-          images: hub.docker.com/r/biopix/app_b
+          images: biopix/app_b
           flavor: latest=true
           tags: |
             type=semver,pattern={{version}}
