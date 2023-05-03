@@ -49,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: app/app_a/Dockerfile
+          file: apps/app_a/Dockerfile
           push: true
           tags: ${{ steps.meta-a.outputs.tags }}
       
@@ -58,7 +58,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: app/app_b/Dockerfile
+          file: apps/app_b/Dockerfile
           push: true
           tags: ${{ steps.meta-b.outputs.tags }}
 
