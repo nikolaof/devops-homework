@@ -1,0 +1,103 @@
+name: Build Test Deploy Apps
+
+# Trigger the workflow when new tag with the defined pattern is created
+on:
+  push:
+    tags:
+    - *v
+  workflow_discpatch:      
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repo to the runner
+      - name: Checkout
+      	uses: actions/checkout@v2
+
+      # Define Docker metadata for app A
+      - name: Define Docker metadata for app-a
+        uses: docker/metadata-action@v4
+	id: meta-a
+        with:
+          images: hub.docker.com/r/biopix/app_a
+          flavor: latest=true
+          tags: |
+            type=semver,pattern={{version}}
+
+      # Define Docker metadata for app B            
+      - name: Define Docker metadata for app-b
+        uses: docker/metadata-action@v4
+	id: meta-b
+        with:
+          images: hub.docker.com/r/biopix/app_b
+          flavor: latest=true
+          tags: |
+            type=semver,pattern={{version}}
+
+      # Login to Docker Hub registry
+      - name: Login to docker hub registry
+        uses: docker/login-action@v2
+        with:
+          registry: hub.docker.com
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      # Build and push app A
+      - name: Build and push app-a
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: app/app_a/Dockerfile
+          push: true
+          tags: ${{ steps.meta-a.outputs.tags }}
+      
+      # Build and push app B 
+      - name: Build and push app-b
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: app/app_b/Dockerfile
+          push: true
+          tags: ${{ steps.meta-b.outputs.tags }}
+
+	deploy:
+		name: Deploy
+		runs-on: ubuntu-latest
+		needs: build
+
+		steps:
+			# Checkout the repo to runner and deploy at EC2
+			- name: Checkout and deploy at EC2
+				uses: actions/checkout@v2
+				env:
+					PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          HOSTNAME : ${{ secrets.AWS_HOSTNAME }}
+          USER_NAME : ${{ secrets.AWS_USER_NAME }}
+
+				run: |
+        	echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+						# The following commands should executed in EC2.
+						cd /home/ubuntu/devops-homework &&
+						git checkout master &&
+						git fetch --all &&
+						git reset --hard origin/master &&
+						git pull origin master &&
+						cd k8s &&
+						kubectl rollout restart deployment/app-a-deployment &&
+						kubectl rollout restart deployment/app-b-deployment 
+					'
+			
+			# Get cluster's health after deployment
+			- name: Run Kube-Bench to check cluster config
+      	continue-on-error: true
+      	run: |
+					ssh -o StrictHostKeyChecking=np -i private_key ${USERNAME}@${HOSTNAME} '
+        	kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-aks.yaml &&
+        	sleep 30s &&
+        	kubectl logs job.batch/kube-bench &&
+        	kubectl delete job.batch/kube-bench
+				'
