@@ -48,7 +48,7 @@ jobs:
       - name: Build and push app-a
         uses: docker/build-push-action@v4
         with:
-          context: .
+          context: apps/app_a
           file: apps/app_a/Dockerfile
           push: true
           tags: ${{ steps.meta-a.outputs.tags }}
@@ -57,7 +57,7 @@ jobs:
       - name: Build and push app-b
         uses: docker/build-push-action@v4
         with:
-          context: .
+          context: apps/app_b
           file: apps/app_b/Dockerfile
           push: true
           tags: ${{ steps.meta-b.outputs.tags }}
