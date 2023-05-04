@@ -523,3 +523,221 @@ Jobs:
 Title: Devops
 Description: Awesome
 ```
+
+# GitHub Actions - CI/CD
+
+## Workflow
+
+![test-1](CICD_Workflow.png)
+
+### Triggers
+
+```yaml
+on:
+  push:
+    tags:
+    - "v*"
+  workflow_dispatch:
+```
+
+The `on` section specifies the conditions that trigger this workflow. For demo and testing purposes, I have defined that the workflow should run for all Git tags/releases that begin with the letter `v`, as well as when it is manually triggered through GitHub's environment by setting `workflow-dispatch`.
+
+### Build
+
+```yaml
+build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repo to the runner
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Define Docker metadata for app A
+      - name: Define Docker metadata for app-a
+        uses: docker/metadata-action@v4
+        id: meta-a
+        with:
+          images: biopix/app_a
+          flavor: latest=true
+          tags: |
+            type=semver,pattern={{version}}
+
+      # Define Docker metadata for app B            
+      - name: Define Docker metadata for app-b
+        uses: docker/metadata-action@v4
+        id: meta-b
+        with:
+          images: biopix/app_b
+          flavor: latest=true
+          tags: |
+            type=semver,pattern={{version}}
+
+      # Login to Docker Hub registry
+      - name: Login to docker hub registry
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          
+      # Build the Docker image of app A for vuln test 
+      - name: Build app A for testing
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_a
+          load: true
+          tags: 'app_a:vuln-test'
+          
+      # Build the Docker image of app A for vuln test
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: 'app_a:vuln-test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'MEDIUM,HIGH,CRITICAL'
+          
+      # Build the Docker image of app B for vuln test 
+      - name: Build app B for testing
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_b
+          load: true
+          tags: 'app_b:vuln-test'
+          
+      # Build the Docker image of app B for vuln test
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: 'app_b:vuln-test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'MEDIUM,HIGH,CRITICAL'
+      
+      # Build the Docker image of app A at test stage without pushing it 
+      - name: Build app A for testing
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_a
+          load: true
+          target: "test"
+          tags: "app_a/test:test"
+      
+      # Run the test image
+      - name: Testing app A
+        run: |
+          docker run --rm app_a/test:test
+      # Build and push app A
+      - name: Build and push app-a
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_a
+          file: apps/app_a/Dockerfile
+          push: true
+          tags: ${{ steps.meta-a.outputs.tags }}
+      
+      # Build and push app B 
+      - name: Build and push app-b
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_b
+          file: apps/app_b/Dockerfile
+          push: true
+          tags: ${{ steps.meta-b.outputs.tags }}
+```
+
+Here I specify the runner machine to be **ubuntu** latest version using the `runs-on` directive. 
+
+The first step of the job is to check out the repository in which this workflow runs. This is necessary because we want to build something with the code from this repository. To achieve this, the `actions/checkout` module is used, which requires no parameters by default. Once the code has been pulled to the runner host, the `docker/metadata-action` is used to specify metadata information on the Docker image. This information is needed later when building and pushing the image. I specify the `image` as `biopix/app_a` and `biopix/app_b` for the two apps, respectively. This is the reference to the container registry I want to use and the image name. I always want to have the `latest` tag attached to this image, so I configured `flavor: latest=true`. Additionally, I specified which other image tags I want to have attached to the image. For instance, when a version is specified by a Git tag, I use this as a tag as well.
+
+The next step is to log in to Docker-hub's registry using credentials that have been set as secrets in the working repository. This can be achieved by using the `docker/login-action@v2` action module and passing the corresponding secret variables.
+
+The next step is to build **only** (not push) the images (both app's a and b) using the `docker/build-push-action@v4` action module. Then, run some vulnerability tests on them using the `aquasecurity/trivy-action@master`. To do this, I set the `load` parameter to `true`, which will automatically load the built image using the provided `tags`.
+
+Using the same approach, in the next step we build the image for app A, specifically its test stage. This can be achieved by passing the `target` parameter to the `docker/build-push-action@v4` action module. Once the image is ready, we can execute it, and this will also execute the unit tests. To enable this functionality, I had to modify the Dockerfile for app A and convert it into a multi-stage one, as shown below:
+
+```Dockerfile
+FROM python:3.10-alpine as base
+
+LABEL author="Nikolaos Fikas"
+LABEL description="Kebormed homework challenge."
+EXPOSE 5000
+
+WORKDIR /app
+
+COPY app_a.py ./
+COPY requirements.txt ./
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+FROM base as test
+
+COPY test.py ./
+
+CMD [ "python", "./test.py" ]
+
+FROM base as production
+
+CMD [ "python", "./app_a.py" ]
+```
+
+Finally, we use the `docker/build-push-action@v4` action module to build and push the new image, taking into account the tags specified in the metadata step. We set the `push` parameter to `true` to push the final artifact to the Docker Hub registry.
+
+### Deploy
+
+```yaml
+deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      # Connect to the EC2 and deploy the apps
+      - name: Deploy apps to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          HOSTNAME : ${{ secrets.AWS_HOSTNAME }}
+          USER_NAME : ${{ secrets.AWS_USER_NAME }}
+
+        run: |
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+            # The following commands should executed in EC2.
+            cd /home/ubuntu/devops-homework &&
+            git checkout main &&
+            git fetch --all &&
+            git reset --hard origin/main &&
+            git pull origin main &&
+            cd k8s &&
+            kubectl rollout restart deployment/app-a-deployment &&
+            kubectl rollout restart deployment/app-b-deployment 
+          '
+      # Get cluster's health after deployment
+      - name: Run Kube-Bench to check cluster config
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          HOSTNAME : ${{ secrets.AWS_HOSTNAME }}
+          USER_NAME : ${{ secrets.AWS_USER_NAME }}
+        continue-on-error: true
+        run: |
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+              kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-aks.yaml &&
+              sleep 30s &&
+              kubectl logs job.batch/kube-bench &&
+              kubectl delete job.batch/kube-bench
+           '
+```
+
+To start, I define the runner OS as Ubuntu and configure the deploy job to run **after** the build job using the `needs` directive.
+
+The first step in the deploy job is to connect to the Kubernetes cluster using SSH. Once the connection is established, pull all the changes and restart the deployment-related files. It may be necessary to re-apply the other manifest files (such as ConfigMap and Ingress), but since I tested the deployments, I left the command as it is.
+
+As a final step if the workflow is the deployment and execution of a job (in the kubernetes cluster) that implements some basic configuration checks. When the job is done, we get the logs and delete the job.
