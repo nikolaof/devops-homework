@@ -98,10 +98,9 @@ jobs:
         continue-on-error: true
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-          ssh -o StrictHostKeyChecking=no -i private_key ${USERNAME}@${HOSTNAME} '
-              ls -la
-              #kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-aks.yaml &&
-              #sleep 30s &&
-              #kubectl logs job.batch/kube-bench &&
-              #kubectl delete job.batch/kube-bench
+          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+              kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-aks.yaml &&
+              sleep 30s &&
+              kubectl logs job.batch/kube-bench &&
+              kubectl delete job.batch/kube-bench
            '
