@@ -16,7 +16,7 @@ def jobs():
     data = {"token": token}
     result = requests.post(f'http://{APP_B_IP}:5001/auth', data=data).content
     if result == b'density':
-        return 'Jobs:\nTitle: Devops\nDescription: Awesome\n'
+        return 'Jobs:\nTitle: Devops\nDescription: Awesome\nDate: 04.05.2023'
     else:
         return 'fail'
 
