@@ -43,6 +43,46 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          
+      # Build the Docker image of app A for vuln test 
+      - name: Build app A for testing
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_a
+          load: true
+          tags: 'app_a:vuln-test'
+          
+      # Build the Docker image of app A for vuln test
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: 'app_a:vuln-test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'MEDIUM,HIGH,CRITICAL'
+          
+      # Build the Docker image of app B for vuln test 
+      - name: Build app A for testing
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_b
+          load: true
+          tags: 'app_b:vuln-test'
+          
+      # Build the Docker image of app B for vuln test
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: 'app_b:vuln-test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'MEDIUM,HIGH,CRITICAL'
       
       # Build the Docker image of app A at test stage without pushing it 
       - name: Build app A for testing
