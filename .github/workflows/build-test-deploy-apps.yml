@@ -65,7 +65,7 @@ jobs:
           severity: 'MEDIUM,HIGH,CRITICAL'
           
       # Build the Docker image of app B for vuln test 
-      - name: Build app A for testing
+      - name: Build app B for testing
         uses: docker/build-push-action@v4
         with:
           context: apps/app_b
