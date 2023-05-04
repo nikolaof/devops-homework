@@ -43,6 +43,20 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      
+      # Build the Docker image of app A at test stage without pushing it 
+      - name: Build app A for testing
+        uses: docker/build-push-action@v4
+        with:
+          context: apps/app_a
+          load: true
+          target: "test"
+          tags: "app_a/test:test"
+      
+      # Run the test image
+      - name: Testing app A
+        run: |
+          docker run --rm app_a/test:test
 
       # Build and push app A
       - name: Build and push app-a
