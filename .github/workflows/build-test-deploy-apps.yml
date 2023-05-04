@@ -15,7 +15,7 @@ jobs:
     steps:
       # Checkout the repo to the runner
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       # Define Docker metadata for app A
       - name: Define Docker metadata for app-a
